@@ -1,0 +1,16 @@
+{
+    // Java
+    "java.configuration.updateBuildConfiguration": "interactive",
+
+    // Flutter SDK path (adjusted for your installation)
+    "dart.flutterSdkPath": "C:\\Users\\shivu\\dev\\flutter_windows_3.32.8-stable\\flutter",
+
+    // Ensure VS Code terminal sees Flutter
+    "terminal.integrated.env.windows": {
+        "PATH": "C:\\Users\\shivu\\dev\\flutter_windows_3.32.8-stable\\flutter\\bin;${env:PATH}"
+    }
+}
+
+
+
+
