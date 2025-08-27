@@ -1,0 +1,65 @@
+name: Release (Windows)
+
+on:
+  push:
+    tags:
+      - 'v*'          # e.g. v1.0.1
+  workflow_dispatch:   # allow manual runs too
+
+permissions:
+  contents: write       # create releases
+  attestations: write   # publish provenance
+  id-token: write       # OIDC token for signing
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Windows (release)
+        run: flutter build windows --release
+
+      - name: Package artifact
+        id: pkg
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $zip = "dist/pagify-${{ github.ref_name }}-win64.zip"
+          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath $zip -Force
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+
+      - name: Generate SHA256
+        id: sha
+        shell: pwsh
+        run: |
+          $sha = (Get-FileHash '${{ steps.pkg.outputs.zip }}' -Algorithm SHA256).Hash.ToLower()
+          "sha256=$sha" >> $env:GITHUB_OUTPUT
+          "sha256:$sha" | Out-File -FilePath "${{ steps.pkg.outputs.zip }}.sha256" -Encoding ascii
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: ${{ steps.pkg.outputs.zip }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Pagify ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: |
+            ${{ steps.pkg.outputs.zip }}
+            ${{ steps.pkg.outputs.zip }}.sha256
