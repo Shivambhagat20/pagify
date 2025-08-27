@@ -1,21 +1,23 @@
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
-/// Placeholder used on non-web platforms (ReaderScreen uses Syncfusion there).
+/// Stub used on non-web targets so the app compiles everywhere.
+/// This widget is never shown when kIsWeb == true.
 class WebPdfHtmlView extends StatelessWidget {
   final Uint8List bytes;
-  final int startPage;
+  final int initialPage; // 1-based
+  final ValueChanged<int>? onSavePage;
 
   const WebPdfHtmlView({
     super.key,
     required this.bytes,
-    this.startPage = 1,
+    required this.initialPage,
+    this.onSavePage,
   });
 
   @override
   Widget build(BuildContext context) {
-    assert(!kIsWeb, 'WebPdfHtmlView should only be used on web.');
+    // Not used on desktop/mobile; ReaderScreen uses Syncfusion there.
     return const SizedBox.shrink();
   }
 }

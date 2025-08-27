@@ -1,61 +1,75 @@
-// lib/services/progress_service.dart
-import 'dart:convert';
-
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+/// Stores/reads last page both locally (SharedPreferences)
+/// and in Firestore when a user is signed in.
+/// The page number is always 0-based here.
 class ProgressService {
   ProgressService._();
   static final ProgressService instance = ProgressService._();
 
-  String _k(String bookId) => 'progress:$bookId';
+  String _localKey(String docId) => 'resume_v2:$docId';
 
-  /// Turn any filename into a short, URL-safe id we can use as a key/doc id.
-  String normalizeId(String name) {
-    return base64Url.encode(utf8.encode(name)).replaceAll('=', '');
-  }
+  FirebaseAuth get _auth => FirebaseAuth.instance;
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
 
-  /// Load last page (0-based). Tries Firestore if signed-in, otherwise local.
-  Future<int?> load(String bookId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final local = prefs.getInt(_k(bookId));
+  bool get _hasUser => _auth.currentUser != null;
 
-    final user = FirebaseAuth.instance.currentUser;
-    final isAuthed = user != null && !user.isAnonymous;
-    if (!isAuthed) return local;
+  /// Read best-known last page (0-based).
+  /// Prefs wins if it has a higher number; otherwise Firestore wins if available.
+  Future<int?> getLastPage(String docId) async {
+    int? best;
 
+    // Local
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user!.uid)
-          .collection('progress')
-          .doc(bookId)
-          .get();
-      final cloud = snap.data()?['page'] as int?;
-      return cloud ?? local;
-    } catch (_) {
-      return local;
+      final p = await SharedPreferences.getInstance();
+      best = p.getInt(_localKey(docId));
+    } catch (_) {}
+
+    // Remote
+    if (_hasUser) {
+      try {
+        final uid = _auth.currentUser!.uid;
+        final snap = await _db
+            .collection('readingProgress')
+            .doc(uid)
+            .collection('docs')
+            .doc(docId)
+            .get();
+        if (snap.exists) {
+          final v = (snap.data()?['lastPage'] as num?)?.toInt();
+          if (v != null) {
+            if (best == null || v > best) best = v;
+          }
+        }
+      } catch (_) {}
     }
+    return best;
   }
 
-  /// Save last page (0-based) locally and to Firestore (if signed-in).
-  Future<void> save(String bookId, int zeroBasedPage) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_k(bookId), zeroBasedPage);
+  /// Store last page (0-based) to both local and (if signed in) Firestore.
+  Future<void> setLastPage(String docId, int lastPage0) async {
+    // Local
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setInt(_localKey(docId), lastPage0);
+    } catch (_) {}
 
-    final user = FirebaseAuth.instance.currentUser;
-    final isAuthed = user != null && !user.isAnonymous;
-    if (!isAuthed) return;
-
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user!.uid)
-        .collection('progress')
-        .doc(bookId)
-        .set(
-      {'page': zeroBasedPage, 'updatedAt': FieldValue.serverTimestamp()},
-      SetOptions(merge: true),
-    );
+    // Remote
+    if (_hasUser) {
+      try {
+        final uid = _auth.currentUser!.uid;
+        await _db
+            .collection('readingProgress')
+            .doc(uid)
+            .collection('docs')
+            .doc(docId)
+            .set({
+          'lastPage': lastPage0,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (_) {}
+    }
   }
 }

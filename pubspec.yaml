@@ -32,11 +32,23 @@ dependencies:
   # Sign-in providers
   google_sign_in: ^6.2.1
   sign_in_with_apple: ^6.1.0
+  file_selector: ^1.0.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  msix: ^3.16.8
 
 flutter:
   uses-material-design: true
+
+msix_config:
+  display_name: Pagify
+  publisher_display_name: Your Publisher Name
+  identity_name: com.yourcompany.pagify
+  msix_version: 0.1.0.0
+  logo_path: assets/app_icon.png
+  start_menu: true
+  enable_at_startup: false
+  capabilities: internetClient

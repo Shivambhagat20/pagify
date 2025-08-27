@@ -1,14 +1,16 @@
-// Web implementation: turn bytes into a blob URL we can give to an <iframe>.
-import 'dart:html' as html; // ignore: avoid_web_libraries_in_flutter
 import 'dart:typed_data';
+import 'dart:html' as html;
 
+/// Creates and revokes blob: URLs for PDF bytes on the web.
 class WebObjectUrl {
   static String createFromBytes(Uint8List bytes, {String mimeType = 'application/pdf'}) {
-    final blob = html.Blob([bytes], mimeType);
+    final blob = html.Blob(<Object>[bytes], mimeType);
     return html.Url.createObjectUrlFromBlob(blob);
   }
 
   static void revoke(String url) {
-    html.Url.revokeObjectUrl(url);
+    try {
+      html.Url.revokeObjectUrl(url);
+    } catch (_) {}
   }
 }
